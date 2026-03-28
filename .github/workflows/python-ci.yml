@@ -1,0 +1,107 @@
+name: python-ci
+
+on:
+  push:
+    branches: [main, dynamic-workflow-*]
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - 'uv.lock'
+      - 'Dockerfile'
+      - 'docker-compose.yml'
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d9363a057549285c6f9013be0cc1590d8ebde555 # v7.0.0
+
+      - name: Set up Python
+        uses: actions/setup-python@e797fb53ca236c5ade057c6e673048c3e792a00a # v6.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run Ruff linter
+        run: uv run ruff check src tests
+
+      - name: Run Ruff formatter check
+        run: uv run ruff format --check src tests
+
+  typecheck:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d9363a057549285c6f9013be0cc1590d8ebde555 # v7.0.0
+
+      - name: Set up Python
+        uses: actions/setup-python@e797fb53ca236c5ade057c6e673048c3e792a00a # v6.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run MyPy type checker
+        run: uv run mypy src
+
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d9363a057549285c6f9013be0cc1590d8ebde555 # v7.0.0
+
+      - name: Set up Python
+        uses: actions/setup-python@e797fb53ca236c5ade057c6e673048c3e792a00a # v6.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: uv sync --dev
+
+      - name: Run tests
+        run: uv run pytest tests -v --cov=src --cov-report=xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@5a10905134b528c1f7c5b4e2a30c0f8b3e28d5a3 # v5.5.1
+        with:
+          files: coverage.xml
+          fail_ci_if_error: false
+
+  docker-build:
+    runs-on: ubuntu-24.04
+    needs: [lint, test]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Build Docker image
+        run: docker build -t workflow-orchestration-queue:test .
+
+      - name: Test Docker image
+        run: |
+          docker run --rm -d --name test-container -p 8000:8000 workflow-orchestration-queue:test
+          sleep 5
+          curl -f http://localhost:8000/health || exit 1
+          docker stop test-container
