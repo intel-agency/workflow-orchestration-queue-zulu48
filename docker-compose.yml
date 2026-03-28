@@ -1,0 +1,44 @@
+services:
+  notifier:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - orchestration-network
+
+  sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO=${GITHUB_REPO}
+      - SENTINEL_BOT_LOGIN=${SENTINEL_BOT_LOGIN:-}
+      - SENTINEL_POLL_INTERVAL=${SENTINEL_POLL_INTERVAL:-60}
+      - SENTINEL_HEARTBEAT_INTERVAL=${SENTINEL_HEARTBEAT_INTERVAL:-300}
+    command: ["python", "-m", "src.orchestrator_sentinel"]
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    networks:
+      - orchestration-network
+    depends_on:
+      notifier:
+        condition: service_healthy
+
+networks:
+  orchestration-network:
+    driver: bridge
