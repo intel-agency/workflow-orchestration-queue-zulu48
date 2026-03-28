@@ -53,13 +53,18 @@ scope: repository
     </automation_scripts>
   </template_usage>
 
-  <tech_stack>
-    <item>opencode CLI — agent runtime (`opencode --model zai-coding-plan/glm-5 --agent Orchestrator`)</item>
-    <item>ZhipuAI GLM models via `ZHIPU_API_KEY`</item>
-    <item>GitHub Actions + devcontainers/ci — workflow trigger, runner, reproducible container</item>
-    <item>.NET SDK 10 + Aspire + Avalonia templates, Bun, uv (all in devcontainer)</item>
-    <item>MCP servers: `@modelcontextprotocol/server-sequential-thinking`, `@modelcontextprotocol/server-memory`</item>
-  </tech_stack>
+   <tech_stack>
+     <item>Python 3.12+ — primary language for orchestrator, API, and system logic</item>
+     <item>FastAPI + Uvicorn — web framework for webhook receiver</item>
+     <item>Pydantic — data validation and settings management</item>
+     <item>HTTPX — async HTTP client for GitHub API</item>
+     <item>uv — Rust-based Python package manager</item>
+     <item>opencode CLI — agent runtime (`opencode --model zai-coding-plan/glm-5 --agent Orchestrator`)</item>
+     <item>ZhipuAI GLM models via `ZHIPU_API_KEY`</item>
+     <item>GitHub Actions + devcontainers/ci — workflow trigger, runner, reproducible container</item>
+     <item>.NET SDK 10 + Aspire + Avalonia templates, Bun, uv (all in devcontainer)</item>
+     <item>MCP servers: `@modelcontextprotocol/server-sequential-thinking`, `@modelcontextprotocol/server-memory`</item>
+   </tech_stack>
 
   <repository_map>
     <!-- Workflows -->
@@ -89,6 +94,13 @@ scope: repository
       </summary>
     </opencode_server>
     <entry><path>test/fixtures/</path><description>Sample webhook payloads for local testing</description></entry>
+    <!-- Python source -->
+    <entry><path>src/notifier_service.py</path><description>FastAPI webhook receiver for GitHub events</description></entry>
+    <entry><path>src/orchestrator_sentinel.py</path><description>Background polling service with shell-bridge execution</description></entry>
+    <entry><path>src/models/work_item.py</path><description>Unified WorkItem model with credential scrubbing</description></entry>
+    <entry><path>src/models/github_events.py</path><description>Pydantic schemas for GitHub webhook payloads</description></entry>
+    <entry><path>src/queue/github_queue.py</path><description>ITaskQueue interface and GitHubQueue implementation</description></entry>
+    <entry><path>tests/</path><description>Python test suite (pytest)</description></entry>
     <!-- Remote instructions -->
     <entry><path>local_ai_instruction_modules/</path><description>Local instruction modules (development rules, workflows, delegation, terminal commands)</description></entry>
   </repository_map>
@@ -127,15 +139,27 @@ scope: repository
     </devcontainer_cache>
   </environment_setup>
 
-  <testing>
-    <guidance>Tests are shell scripts in `test/`. Run directly with `bash`.</guidance>
-    <commands>
-      <command>All tests: `bash test/test-devcontainer-build.sh && bash test/test-devcontainer-tools.sh && bash test/test-prompt-assembly.sh`</command>
-      <command>Prompt changes: `bash test/test-prompt-assembly.sh`</command>
-      <command>Dockerfile changes: `bash test/test-devcontainer-tools.sh`</command>
-    </commands>
-    <guidance>Add new fixture payloads to `test/fixtures/` when testing new event types.</guidance>
-  </testing>
+   <testing>
+     <guidance>Tests are shell scripts in `test/`. Run directly with `bash`.</guidance>
+     <commands>
+       <command>All tests: `bash test/test-devcontainer-build.sh && bash test/test-devcontainer-tools.sh && bash test/test-prompt-assembly.sh`</command>
+       <command>Prompt changes: `bash test/test-prompt-assembly.sh`</command>
+       <command>Dockerfile changes: `bash test/test-devcontainer-tools.sh`</command>
+     </commands>
+     <guidance>Add new fixture payloads to `test/fixtures/` when testing new event types.</guidance>
+     
+     <python_tests>
+       <guidance>Python tests use pytest. Run with uv for dependency management.</guidance>
+       <commands>
+         <command>Install deps: `uv sync --dev`</command>
+         <command>Run tests: `uv run pytest tests -v`</command>
+         <command>With coverage: `uv run pytest tests -v --cov=src --cov-report=term-missing`</command>
+         <command>Lint: `uv run ruff check src tests`</command>
+         <command>Format: `uv run ruff format src tests`</command>
+         <command>Type check: `uv run mypy src`</command>
+       </commands>
+     </python_tests>
+   </testing>
 
   <coding_conventions>
     <rule>Keep changes minimal and targeted.</rule>
